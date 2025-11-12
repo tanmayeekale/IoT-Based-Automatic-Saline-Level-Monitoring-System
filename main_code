@@ -1,0 +1,49 @@
+#include <HX711_ADC.h> // need to install 
+#include <Wire.h>
+#include <ESP8266WiFi.h>
+#include <ThingSpeak.h>
+#include <Servo.h>
+#define WIFI_SSID "Downloading Virus"
+#define WIFI_PASSWORD "downloadingvirus"
+#define THINGSPEAK_API_KEY "8AQN6Y05JHGYX2TR"
+#define THINGSPEAK_CHANNEL_ID 2495615
+WiFiClient client;
+Servo servoMotor;
+HX711_ADC LoadCell(D1, D2); // parameters: dt pin 6, sck pin 7;
+void setup() 
+{
+  Serial.begin(9600);
+  servoMotor.attach(D5);
+  LoadCell.begin(); // start connection to HX711
+  LoadCell.start(2000); // load cells gets 2000ms of time to stabilize
+  LoadCell.setCalFactor(1000.0); // calibration factor for load cell => dependent on your individual setup
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  while (WiFi.status() != WL_CONNECTED) 
+  {
+    delay(1000);
+  }
+  ThingSpeak.begin(client);
+}
+void loop() {
+  LoadCell.update(); // retrieves data from the load cell
+  float i = LoadCell.getData(); // get output value
+  Serial.print(i);
+  ThingSpeak.setField(1, i);
+  int httpCode = ThingSpeak.writeFields(THINGSPEAK_CHANNEL_ID, THINGSPEAK_API_KEY);
+  Serial.println(httpCode == 200 ? "Data sent to ThingSpeak successfully" : "Error sending data to ThingSpeak");
+  
+  delay(500);
+  if (i < 500) 
+  {
+    servoMotor.write(180);
+    delay(1000);
+  }
+  else
+  {
+    servoMotor.write(0);
+    delay(1000);
+  }
+
+  delay(15000);
+}
+
